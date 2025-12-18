@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Space Shooter</title>
+  <style>
+    :root{
+      --bg1:#050814;
+      --bg2:#090b22;
+      --ui:#d7e7ff;
+      --accent:#7cf7ff;
+      --danger:#ff5c7a;
+      --good:#86ff9d;
+    }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: radial-gradient(1200px 600px at 50% 30%, var(--bg2), var(--bg1));
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--ui);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .wrap{
+      height: 100%;
+      display: grid;
+      place-items: center;
+    }
+
+    .frame{
+      width: min(900px, 96vw);
+      aspect-ratio: 16/9;
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 18px 60px rgba(0,0,0,.55);
+      border: 1px solid rgba(124,247,255,.18);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    }
+
+    canvas{
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hud{
+      position:absolute;
+      inset: 0;
+      pointer-events:none;
+      padding: 14px 14px 10px 14px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-weight: 700;
+      letter-spacing: .3px;
+      text-shadow: 0 2px 10px rgba(0,0,0,.4);
+    }
+
+    .pill{
+      display:inline-flex;
+      gap: 10px;
+      align-items:center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(6px);
+    }
+
+    .stat b{ color: var(--accent); }
+    .stat .danger{ color: var(--danger); }
+    .stat .good{ color: var(--good); }
+
+    .centerOverlay{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      pointer-events:none;
+    }
+
+    .card{
+      pointer-events:none;
+      width: min(520px, 92%);
+      padding: 18px 18px 14px;
+      border-radius: 18px;
+      background: rgba(0,0,0,.55);
+      border: 1px solid rgba(124,247,255,.18);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 14px 40px rgba(0,0,0,.45);
+      text-align:center;
+    }
+    .card h1{
+      margin: 0 0 8px 0;
+      font-size: 26px;
+      color: var(--accent);
+      letter-spacing: .6px;
+    }
+    .card p{
+      margin: 8px 0;
+      opacity: .92;
+      line-height: 1.35;
+      font-size: 14px;
+    }
+    .kbd{
+      display:inline-block;
+      padding: 3px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      margin: 0 3px;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: .3px;
+    }
+    .hint{
+      opacity:.85;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .btnHint{
+      margin-top: 10px;
+      font-size: 12px;
+      opacity:.9;
+    }
+
+    .footerNote{
+      position:absolute;
+      left: 14px;
+      bottom: 10px;
+      font-size: 12px;
+      opacity:.75;
+      pointer-events:none;
+    }
+
+    /* Mobile touch controls */
+    .touch{
+      position:absolute;
+      inset:auto 0 0 0;
+      display:none;
+      gap: 10px;
+      padding: 10px;
+      pointer-events:auto;
+      justify-content:space-between;
+      align-items:center;
+      background: linear-gradient(180deg, transparent, rgba(0,0,0,.45));
+    }
+    .touch .pad{
+      display:flex;
+      gap:10px;
+    }
+    .touch button{
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.35);
+      color: var(--ui);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 800;
+      letter-spacing:.3px;
+      min-width: 64px;
+      touch-action: manipulation;
+    }
+    .touch button:active{
+      transform: translateY(1px);
+      border-color: rgba(124,247,255,.35);
+    }
+    @media (max-width: 720px){
+      .touch{ display:flex; }
+    }
+    .Resume{
+  display: inline-block;
+  margin: 20px auto;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #1f4b99, #7c3aed);
+  color: white;
+  font-weight: 800;
+  text-decoration: none;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(31,75,153,.35);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.Resume:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(31,75,153,.45);
+}
+
+  </style>
+</head>
+<body>
+   <a href="index.html" class="Resume"> Resume</a>
+   <a href = "cheesy_bread.html" class="Resume">Recipe</a>
+<div class="wrap">
+  <div class="frame" id="frame">
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="topbar">
+        <div class="pill stat">Score: <b id="score">0</b> &nbsp;|&nbsp; Wave: <b id="wave">1</b></div>
+        <div class="pill stat">Lives: <span class="danger" id="lives">3</span> &nbsp;|&nbsp; Combo: <span class="good" id="combo">x1</span></div>
+      </div>
+    </div>
+
+    <div class="centerOverlay" id="overlay">
+      <div class="card" id="card">
+        <h1>Space Shooter</h1>
+        <p>
+          Move with <span class="kbd">A</span><span class="kbd">D</span> or <span class="kbd">←</span><span class="kbd">→</span> (or <span class="kbd">WASD</span>)<br/>
+          Shoot with <span class="kbd">Space</span> • Pause <span class="kbd">P</span> • Restart <span class="kbd">R</span>
+        </p>
+        <p class="hint">Tip: Grab power-ups, keep your combo going, and don’t let enemies pass you.</p>
+        <p class="btnHint">Press <span class="kbd">Enter</span> to start</p>
+      </div>
+    </div>
+
+    <div class="footerNote">Made with HTML + CSS + JS (no libraries)</div>
+
+    <div class="touch">
+      <div class="pad">
+        <button id="leftBtn">◀</button>
+        <button id="rightBtn">▶</button>
+      </div>
+      <button id="shootBtn">FIRE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Canvas setup ----------
+  const canvas = document.getElementById("game");
+  const frame = document.getElementById("frame");
+  const ctx = canvas.getContext("2d");
+
+  function resize() {
+    const rect = frame.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resize, { passive: true });
+  resize();
+
+  // ---------- UI ----------
+  const $score = document.getElementById("score");
+  const $lives = document.getElementById("lives");
+  const $wave  = document.getElementById("wave");
+  const $combo = document.getElementById("combo");
+  const overlay = document.getElementById("overlay");
+  const card = document.getElementById("card");
+
+  // ---------- Input ----------
+  const keys = new Set();
+  let shootHeld = false;
+
+  window.addEventListener("keydown", (e) => {
+    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," ","Spacebar"].includes(e.key)) e.preventDefault();
+    keys.add(e.key.toLowerCase());
+
+    if (e.key === " " || e.code === "Space") shootHeld = true;
+
+    if ((e.key === "Enter" || e.key === "Return") && (state.mode === "title" || state.mode === "gameover")) {
+      startGame();
+    }
+    if (e.key.toLowerCase() === "p" && state.mode === "playing") {
+      state.mode = "paused";
+      showOverlay("Paused", "Press <span class='kbd'>P</span> to resume.");
+    } else if (e.key.toLowerCase() === "p" && state.mode === "paused") {
+      state.mode = "playing";
+      hideOverlay();
+    }
+    if (e.key.toLowerCase() === "r") startGame();
+  });
+
+  window.addEventListener("keyup", (e) => {
+    keys.delete(e.key.toLowerCase());
+    if (e.key === " " || e.code === "Space") shootHeld = false;
+  });
+
+  // Touch controls
+  const leftBtn = document.getElementById("leftBtn");
+  const rightBtn = document.getElementById("rightBtn");
+  const shootBtn = document.getElementById("shootBtn");
+
+  const touchState = { left:false, right:false, fire:false };
+
+  const hold = (btn, prop) => {
+    const down = () => touchState[prop] = true;
+    const up   = () => touchState[prop] = false;
+    btn.addEventListener("pointerdown", (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); down(); });
+    btn.addEventListener("pointerup", up);
+    btn.addEventListener("pointercancel", up);
+    btn.addEventListener("pointerleave", up);
+  };
+  hold(leftBtn, "left");
+  hold(rightBtn,"right");
+  hold(shootBtn,"fire");
+
+  // ---------- Helpers ----------
+  const rand = (a,b) => a + Math.random()*(b-a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const dist2 = (ax,ay,bx,by) => (ax-bx)**2 + (ay-by)**2;
+
+  // ---------- Game state ----------
+  const state = {
+    mode: "title", // title | playing | paused | gameover
+    t: 0,
+    score: 0,
+    lives: 3,
+    wave: 1,
+    combo: 1,
+    comboTimer: 0,
+
+    // difficulty scaling
+    enemyRate: 1.0,      // spawns per second (base)
+    enemySpeed: 90,      // px/s (base)
+    enemyHP: 1,
+
+    // shoot handling
+    shootCooldown: 0,
+    shootDelay: 0.14,    // seconds between shots
+    powerTimer: 0,       // triple shot duration
+    shieldTimer: 0,      // shield duration
+  };
+
+  const W = () => frame.clientWidth;
+  const H = () => frame.clientHeight;
+
+  const player = {
+    x: 0, y: 0,
+    w: 46, h: 26,
+    speed: 360,
+    invuln: 0
+  };
+
+  const bullets = [];
+  const enemies = [];
+  const particles = [];
+  const stars = [];
+  const powerups = []; // {x,y,vy,type,r}
+
+  function resetStars() {
+    stars.length = 0;
+    for (let i=0;i<140;i++){
+      stars.push({
+        x: Math.random()*W(),
+        y: Math.random()*H(),
+        z: rand(0.2, 1.0),
+        r: rand(0.6, 2.0)
+      });
+    }
+  }
+  resetStars();
+
+  // ---------- Overlay ----------
+  function showOverlay(title, html) {
+    overlay.style.display = "grid";
+    card.innerHTML = `
+      <h1>${title}</h1>
+      <p>${html}</p>
+      <p class="btnHint">Press <span class="kbd">Enter</span> to start • <span class="kbd">R</span> to restart</p>
+    `;
+  }
+  function hideOverlay(){
+    overlay.style.display = "none";
+  }
+
+  // ---------- Start / Restart ----------
+  function startGame(){
+    state.mode = "playing";
+    state.t = 0;
+    state.score = 0;
+    state.lives = 3;
+    state.wave = 1;
+    state.combo = 1;
+    state.comboTimer = 0;
+
+    state.enemyRate = 1.1;
+    state.enemySpeed = 95;
+    state.enemyHP = 1;
+
+    state.shootCooldown = 0;
+    state.shootDelay = 0.14;
+    state.powerTimer = 0;
+    state.shieldTimer = 0;
+
+    bullets.length = 0;
+    enemies.length = 0;
+    particles.length = 0;
+    powerups.length = 0;
+
+    player.x = W()/2;
+    player.y = H() - 70;
+    player.invuln = 1.0;
+
+    hideOverlay();
+    updateUI();
+  }
+
+  function gameOver(){
+    state.mode = "gameover";
+    showOverlay("Game Over", `Final score: <span class="kbd">${state.score}</span><br/>Wave reached: <span class="kbd">${state.wave}</span>`);
+  }
+
+  function updateUI(){
+    $score.textContent = state.score.toString();
+    $lives.textContent = state.lives.toString();
+    $wave.textContent = state.wave.toString();
+    $combo.textContent = "x" + state.combo.toString();
+  }
+
+  // ---------- Spawn logic ----------
+  let enemySpawnAcc = 0;
+  function spawnEnemy(){
+    const margin = 30;
+    const x = rand(margin, W()-margin);
+    const y = -20;
+    const size = rand(16, 28);
+    const hp = state.enemyHP + (Math.random() < 0.12 ? 1 : 0); // occasional tougher one
+    enemies.push({
+      x, y,
+      vx: rand(-25, 25),
+      vy: state.enemySpeed + rand(-20, 35),
+      r: size,
+      hp,
+      maxHp: hp
+    });
+  }
+
+  function maybeSpawnPowerup(x, y){
+    const roll = Math.random();
+    if (roll < 0.08) {
+      const type = (Math.random() < 0.5) ? "triple" : "shield";
+      powerups.push({ x, y, vy: 110, type, r: 10 });
+    }
+  }
+
+  // ---------- Shooting ----------
+  function shoot(){
+    if (state.shootCooldown > 0) return;
+    state.shootCooldown = state.shootDelay;
+
+    const base = { x: player.x, y: player.y - 18, vx: 0, vy: -520, r: 3.2, dmg: 1 };
+    bullets.push({...base});
+
+    if (state.powerTimer > 0){
+      bullets.push({ x: player.x-10, y: player.y-18, vx: -140, vy: -500, r: 3.0, dmg: 1 });
+      bullets.push({ x: player.x+10, y: player.y-18, vx:  140, vy: -500, r: 3.0, dmg: 1 });
+    }
+  }
+
+  // ---------- Explosions ----------
+  function burst(x,y, n=18){
+    for(let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = rand(70, 280);
+      particles.push({
+        x, y,
+        vx: Math.cos(a)*sp,
+        vy: Math.sin(a)*sp,
+        life: rand(0.25, 0.6),
+        t: 0,
+        r: rand(1.2, 2.6)
+      });
+    }
+  }
+
+  // ---------- Collisions ----------
+  function circleHit(ax,ay,ar, bx,by,br){
+    return dist2(ax,ay,bx,by) <= (ar+br)*(ar+br);
+  }
+
+  // ---------- Main loop ----------
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+
+    update(dt);
+    draw();
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- Update ----------
+  function update(dt){
+    // move starfield even in title
+    for (const s of stars){
+      s.y += (40 + s.z*120) * dt;
+      if (s.y > H()+5){ s.y = -5; s.x = Math.random()*W(); }
+    }
+
+    if (state.mode !== "playing") return;
+
+    state.t += dt;
+
+    // difficulty / wave scaling
+    // every ~20 seconds advance wave
+    const targetWave = 1 + Math.floor(state.t / 20);
+    if (targetWave > state.wave){
+      state.wave = targetWave;
+      state.enemyRate = 1.1 + state.wave*0.22;
+      state.enemySpeed = 95 + state.wave*10;
+      state.enemyHP = 1 + Math.floor((state.wave-1)/4);
+      burst(W()/2, H()/3, 24);
+    }
+
+    // combo timer
+    state.comboTimer -= dt;
+    if (state.comboTimer <= 0){
+      state.combo = 1;
+      state.comboTimer = 0;
+    }
+
+    // player invulnerability
+    player.invuln = Math.max(0, player.invuln - dt);
+
+    // power timers
+    state.powerTimer = Math.max(0, state.powerTimer - dt);
+    state.shieldTimer = Math.max(0, state.shieldTimer - dt);
+
+    // shoot cooldown
+    state.shootCooldown = Math.max(0, state.shootCooldown - dt);
+
+    // input movement
+    const left = keys.has("a") || keys.has("arrowleft") || touchState.left;
+    const right = keys.has("d") || keys.has("arrowright") || touchState.right;
+
+    let vx = 0;
+    if (left) vx -= 1;
+    if (right) vx += 1;
+
+    player.x += vx * player.speed * dt;
+    player.x = clamp(player.x, 26, W()-26);
+
+    // shoot input
+    const wantsShoot = shootHeld || keys.has(" ") || keys.has("space") || touchState.fire;
+    if (wantsShoot) shoot();
+
+    // spawn enemies
+    enemySpawnAcc += state.enemyRate * dt;
+    while (enemySpawnAcc >= 1){
+      enemySpawnAcc -= 1;
+      spawnEnemy();
+    }
+
+    // update bullets
+    for (let i=bullets.length-1;i>=0;i--){
+      const b = bullets[i];
+      b.x += b.vx*dt;
+      b.y += b.vy*dt;
+      if (b.y < -30 || b.x < -40 || b.x > W()+40){
+        bullets.splice(i,1);
+      }
+    }
+
+    // update enemies
+    for (let i=enemies.length-1;i>=0;i--){
+      const e = enemies[i];
+      e.x += e.vx*dt;
+      e.y += e.vy*dt;
+
+      // mild horizontal bounce
+      if (e.x < 18){ e.x = 18; e.vx *= -1; }
+      if (e.x > W()-18){ e.x = W()-18; e.vx *= -1; }
+
+      // if enemy escapes off-screen, remove it (NO life lost)
+      if (e.y > H()+40){
+        enemies.splice(i,1);
+
+        // OPTIONAL penalty: reset combo when you "miss" an enemy.
+        // Comment out the next two lines if you don't want any penalty at all.
+        state.combo = 1;
+        state.comboTimer = 0;
+      }
+    }
+
+    // update powerups
+    for (let i=powerups.length-1;i>=0;i--){
+      const p = powerups[i];
+      p.y += p.vy * dt;
+      if (p.y > H()+30){ powerups.splice(i,1); continue; }
+      if (circleHit(p.x,p.y,p.r, player.x,player.y, 20)){
+        if (p.type === "triple") state.powerTimer = 10;
+        if (p.type === "shield") state.shieldTimer = 9;
+        burst(p.x,p.y, 16);
+        powerups.splice(i,1);
+      }
+    }
+
+    // particles
+    for (let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.t += dt;
+      p.x += p.vx*dt;
+      p.y += p.vy*dt;
+      p.vx *= (1 - 2.5*dt);
+      p.vy *= (1 - 2.5*dt);
+      if (p.t >= p.life) particles.splice(i,1);
+    }
+
+    // collisions: bullets vs enemies
+    for (let i=enemies.length-1;i>=0;i--){
+      const e = enemies[i];
+      for (let j=bullets.length-1;j>=0;j--){
+        const b = bullets[j];
+        if (circleHit(e.x,e.y,e.r, b.x,b.y,b.r)){
+          bullets.splice(j,1);
+          e.hp -= b.dmg;
+
+          // hit sparks
+          particles.push({ x:b.x, y:b.y, vx: rand(-80,80), vy: rand(-80,80), life: 0.2, t: 0, r: 1.6 });
+
+          if (e.hp <= 0){
+            // score + combo
+            const add = 10 * state.combo + Math.floor((e.maxHp-1)*8);
+            state.score += add;
+            state.combo = clamp(state.combo + 1, 1, 9);
+            state.comboTimer = 3.0;
+
+            burst(e.x,e.y, 22);
+            maybeSpawnPowerup(e.x, e.y);
+
+            enemies.splice(i,1);
+          }
+          break;
+        }
+      }
+    }
+
+    // collisions: player vs enemies
+    for (let i=enemies.length-1;i>=0;i--){
+      const e = enemies[i];
+      if (circleHit(e.x,e.y,e.r, player.x,player.y, 18)){
+        enemies.splice(i,1);
+        burst(e.x,e.y, 24);
+        takeDamage();
+      }
+    }
+
+    updateUI();
+  }
+
+  function takeDamage(){
+    if (player.invuln > 0) return;
+    if (state.shieldTimer > 0){
+      // shield absorbs and ends
+      state.shieldTimer = 0;
+      player.invuln = 0.9;
+      burst(player.x, player.y, 18);
+      return;
+    }
+
+    state.lives -= 1;
+    state.combo = 1;
+    state.comboTimer = 0;
+    player.invuln = 1.2;
+    burst(player.x, player.y, 26);
+
+    if (state.lives <= 0){
+      gameOver();
+    }
+  }
+
+  // ---------- Draw ----------
+  function draw(){
+    const w = W(), h = H();
+
+    // background
+    ctx.clearRect(0,0,w,h);
+
+    // stars
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    for (const s of stars){
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(215,231,255," + (0.25 + s.z*0.55) + ")";
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // subtle nebula bands
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = "#7cf7ff";
+    ctx.translate(w*0.2, h*0.15);
+    ctx.rotate(-0.25);
+    ctx.fillRect(-w*0.2, -20, w*1.2, 40);
+    ctx.restore();
+
+    // bullets
+    for (const b of bullets){
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(124,247,255,0.95)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y+6, b.r+1.4, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(124,247,255,0.12)";
+      ctx.fill();
+    }
+
+    // enemies
+    for (const e of enemies){
+      // body
+      ctx.save();
+      ctx.translate(e.x, e.y);
+
+      // glow
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath();
+      ctx.arc(0,0, e.r+10, 0, Math.PI*2);
+      ctx.fillStyle = "#ff5c7a";
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(0,0, e.r, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(255,92,122,0.9)";
+      ctx.fill();
+
+      // inner detail
+      ctx.beginPath();
+      ctx.arc(-e.r*0.25, -e.r*0.2, e.r*0.35, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.fill();
+
+      // HP ring for tougher enemies
+      if (e.maxHp > 1){
+        const pct = clamp(e.hp / e.maxHp, 0, 1);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(215,231,255,0.35)";
+        ctx.beginPath();
+        ctx.arc(0,0, e.r+5, 0, Math.PI*2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(134,255,157,0.9)";
+        ctx.beginPath();
+        ctx.arc(0,0, e.r+5, -Math.PI/2, -Math.PI/2 + Math.PI*2*pct);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // powerups
+    for (const p of powerups){
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.globalAlpha = 0.9;
+
+      ctx.beginPath();
+      ctx.arc(0,0, p.r+9, 0, Math.PI*2);
+      ctx.fillStyle = (p.type==="triple") ? "rgba(124,247,255,0.15)" : "rgba(134,255,157,0.15)";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(0,0, p.r, 0, Math.PI*2);
+      ctx.fillStyle = (p.type==="triple") ? "rgba(124,247,255,0.95)" : "rgba(134,255,157,0.95)";
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.font = "900 11px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.type==="triple" ? "III" : "S", 0, 0);
+
+      ctx.restore();
+    }
+
+    // particles
+    for (const p of particles){
+      const a = 1 - (p.t / p.life);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(215,231,255," + (0.2 + a*0.8) + ")";
+      ctx.fill();
+    }
+
+    // player ship
+    drawShip(player.x, player.y);
+
+    // shield indicator
+    if (state.shieldTimer > 0){
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.25*Math.sin(performance.now()/120);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(134,255,157,0.95)";
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 26, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // power indicator
+    if (state.powerTimer > 0){
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = "rgba(124,247,255,0.85)";
+      ctx.font = "700 12px system-ui";
+      ctx.fillText("TRIPLE SHOT", 18, h-18);
+      ctx.restore();
+    }
+
+    // title overlay if needed
+    if (state.mode === "title"){
+      overlay.style.display = "grid";
+    }
+  }
+
+  function drawShip(x,y){
+    ctx.save();
+    ctx.translate(x,y);
+
+    const blink = (player.invuln > 0) ? (Math.floor(performance.now()/90)%2===0) : true;
+    ctx.globalAlpha = blink ? 1 : 0.35;
+
+    // engine glow
+    ctx.globalAlpha *= 0.9;
+    ctx.beginPath();
+    ctx.ellipse(0, 16, 10, 22, 0, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(124,247,255,0.25)";
+    ctx.fill();
+
+    // body
+    ctx.globalAlpha = blink ? 1 : 0.35;
+    ctx.beginPath();
+    ctx.moveTo(0, -18);
+    ctx.lineTo(18, 16);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-18, 16);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(215,231,255,0.95)";
+    ctx.fill();
+
+    // cockpit
+    ctx.beginPath();
+    ctx.ellipse(0, -4, 6, 9, 0, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(124,247,255,0.9)";
+    ctx.fill();
+
+    // outline
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(124,247,255,0.35)";
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Show initial overlay
+  showOverlay(
+    "Space Shooter",
+    `Move <span class="kbd">A</span><span class="kbd">D</span> or <span class="kbd">←</span><span class="kbd">→</span> • Shoot <span class="kbd">Space</span><br/>
+     Power-ups: <span class="kbd">III</span> Triple-shot • <span class="kbd">S</span> Shield`
+  );
+})();
+</script>
+</body>
+</html>
